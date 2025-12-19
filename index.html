@@ -284,25 +284,24 @@
 				// Replicate selection logic
 				selectedObject = obj;
 
+				// Use the object's rotation directly to ensure we look at the right direction
+				destinyRotation = selectedObject.rotation.y;
+
 				// Front wall
 				if (selectedObject.position.z == -229) {
 					targetPos = new THREE.Vector3(selectedObject.position.x, 0, selectedObject.position.z + 50);
-					destinyRotation = 0;
 				}
 				// Left wall
 				else if (selectedObject.position.x == -369) {
 					targetPos = new THREE.Vector3(selectedObject.position.x + 50, 0, selectedObject.position.z);
-					destinyRotation = -Math.PI / 2;
 				}
 				// Right wall
 				else if (selectedObject.position.x == 49) {
 					targetPos = new THREE.Vector3(selectedObject.position.x - 50, 0, selectedObject.position.z);
-					destinyRotation = Math.PI / 2;
 				}
 				// Back wall
 				else if (selectedObject.position.z == 269) {
 					targetPos = new THREE.Vector3(selectedObject.position.x, 0, selectedObject.position.z - 50);
-					destinyRotation = Math.PI;
 				}
 
 				camPos = new THREE.Vector3().copy(camera.position);
@@ -337,13 +336,26 @@
 			}
 		}
 
-		// Patch animate to proceed tour
+		// Patch animate to proceed tour and add jitter
 		var originalAnimate = window.animate;
 		window.animate = function () {
 			originalAnimate();
 
 			// Arrived at picture? (camPos and targetPos are nullified in original animate on arrival)
 			if (isTouring && camPos === null && targetPos === null) {
+				// Human-like Jitter (Subtle breathing/hand-shake)
+				var time = Date.now() * 0.001;
+				var jitterX = Math.sin(time * 0.7) * 0.3;
+				var jitterY = Math.cos(time * 0.5) * 0.2;
+				var jitterRot = Math.sin(time * 0.4) * 0.002;
+				
+				camera.position.x += jitterX;
+				camera.position.y += jitterY;
+				camera.rotation.y += jitterRot;
+				
+				// Keep original logic updated so it doesn't fight the jitter too hard
+				targetRotation = camera.rotation.y;
+
 				if (!tourTimer) {
 					tourTimer = setTimeout(function () {
 						tourTimer = null;
