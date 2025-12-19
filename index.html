@@ -270,6 +270,7 @@
 		}
 
 
+
 		// --- Automatic Tour Mode ---
 		var isTouring = false;
 		var tourIndex = -1;
@@ -346,21 +347,29 @@
 					tourTimer = setTimeout(function () {
 						tourTimer = null;
 						if (isTouring) gotoNextArtwork();
-					}, 15000); // 15 seconds per artwork
+					}, 20000); // 20 seconds per artwork as requested
 				}
 			}
 		};
 
-		// Interaction stops tour
+		// Interaction stops tour, but ignore if coming from UI elements
+		function isEventInUI(event) {
+			var path = event.composedPath ? event.composedPath() : [];
+			for (var i = 0; i < path.length; i++) {
+				if (path[i].id === "controls" || path[i].id === "tour_button_ui") return true;
+			}
+			return false;
+		}
+
 		var originalOnMouseDown = window.onDocumentMouseDown;
 		window.onDocumentMouseDown = function (event) {
-			if (isTouring) stopTour();
+			if (isTouring && !isEventInUI(event)) stopTour();
 			if (originalOnMouseDown) originalOnMouseDown(event);
 		};
 
 		var originalOnTouchStart = window.onDocumentTouchStart;
 		window.onDocumentTouchStart = function (event) {
-			if (isTouring) stopTour();
+			if (isTouring && !isEventInUI(event)) stopTour();
 			if (originalOnTouchStart) originalOnTouchStart(event);
 		};
 
@@ -381,9 +390,16 @@
 				tourBtn.id = "tour_button_ui";
 				tourBtn.style.cssText = "clear:both; margin-top:10px; padding: 8px; background: #55acee; border-radius: 8px; cursor:pointer; font-weight:bold; text-align:center;";
 				tourBtn.innerHTML = '<span id="tour_btn_text">自动导览 (Auto Tour)</span>';
-				tourBtn.onclick = function(e) {
+				
+				// Use onmousedown to handle interaction before global listeners if possible, 
+				// and stop propagation to prevent global click handlers from firing.
+				tourBtn.onmousedown = function(e) {
 					e.stopPropagation();
 					toggleTour();
+				};
+				// Also prevent click to be extra safe
+				tourBtn.onclick = function(e) {
+					e.stopPropagation();
 				};
 				controls.appendChild(tourBtn);
 			}
