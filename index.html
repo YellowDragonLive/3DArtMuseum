@@ -176,7 +176,8 @@
 
 			// Metadata
 			// The original code uses the object in 'objects' array for data.
-			imageMesh.userData = [audio, desc];
+			// User requested to disable per-artwork audio and description text.
+			imageMesh.userData = ["", ""];
 
 			// Add to scene
 			scene.add(imageMesh);
@@ -237,10 +238,176 @@
 		addToBack(42, -250, imagesData[18], "Art_19.mp3", "La escuela de Atenas es una de las pinturas m&aacute;s destacadas del artista Rafael Sanzio. Fue hecha en boceto entre 1509 y 1510 y pintada entre 1510 y 1512 como parte de una comisi&oacute;n para decorar con frescos las habitaciones que hoy en d&iacute;a son conocidas como las estancias de Rafael, ubicadas en el Palacio Apost&oacute;lico de la Ciudad del Vaticano. La Stanza della Segnatura fue la primera en ser decorada, y La escuela de Atenas la segunda pintura en ser finalizada, tras La disputa del Sacramento.");
 		addToBack(27, -320, imagesData[19], "Art_20.mp3", "El Hijo del Hombre, es una pintura de 1964 hecha por el pintor surrealista de nacionalidad belga Ren&eacute; Magritte, y su obra m&aacute;s conocida. Magritte lo pint&oacute; como un autorretrato. La pintura se compone de un hombre con abrigo, corbata roja y bomb&iacute;n de pie delante de un muro. M&aacute;s all&aacute; se ve el mar y un cielo nublado. El rostro del hombre se oscurece en gran parte por una manzana verde flotando. Sin embargo, los ojos del hombre se pueden ver asomando por el borde de la manzana.");
 
+		// --- Audio & UX Enhancements ---
+
+		// 1. Shim Audio to prevent errors when deleting files or passing empty strings
+		var originalAudio = window.Audio;
+		window.Audio = function (src) {
+			if (!src || src === "") {
+				// Return dummy object
+				return {
+					play: function () { },
+					pause: function () { },
+					set volume(v) { },
+					set onended(f) { }
+				};
+			}
+			return new originalAudio(src);
+		};
+
+		// 2. Global BGM Player
+		var bgm = new originalAudio("bgm.mp3");
+		bgm.loop = true;
+		bgm.volume = 0.5;
+
+		function startBGM() {
+			bgm.play().catch(function (e) {
+				console.log("Autoplay blocked, waiting for interaction");
+				document.body.addEventListener('click', function () {
+					bgm.play();
+				}, { once: true });
+			});
+		}
+
+
+		// --- Automatic Tour Mode ---
+		var isTouring = false;
+		var tourIndex = -1;
+		var tourTimer = null;
+
+		window.gotoNextArtwork = function () {
+			if (!isTouring) return;
+			tourIndex = (tourIndex + 1) % objects.length;
+			var obj = objects[tourIndex];
+			if (obj) {
+				// Replicate selection logic
+				selectedObject = obj;
+
+				// Front wall
+				if (selectedObject.position.z == -229) {
+					targetPos = new THREE.Vector3(selectedObject.position.x, 0, selectedObject.position.z + 250);
+					destinyRotation = 0;
+				}
+				// Left wall
+				else if (selectedObject.position.x == -369) {
+					targetPos = new THREE.Vector3(selectedObject.position.x + 250, 0, selectedObject.position.z);
+					destinyRotation = -Math.PI / 2;
+				}
+				// Right wall
+				else if (selectedObject.position.x == 49) {
+					targetPos = new THREE.Vector3(selectedObject.position.x - 250, 0, selectedObject.position.z);
+					destinyRotation = Math.PI / 2;
+				}
+				// Back wall
+				else if (selectedObject.position.z == 269) {
+					targetPos = new THREE.Vector3(selectedObject.position.x, 0, selectedObject.position.z - 250);
+					destinyRotation = Math.PI;
+				}
+
+				camPos = new THREE.Vector3().copy(camera.position);
+			}
+		};
+
+		window.stopTour = function () {
+			isTouring = false;
+			if (tourTimer) {
+				clearTimeout(tourTimer);
+				tourTimer = null;
+			}
+			updateTourButton();
+		};
+
+		window.toggleTour = function () {
+			isTouring = !isTouring;
+			if (isTouring) {
+				tourIndex = -1; // Start from first
+				gotoNextArtwork();
+			} else {
+				stopTour();
+			}
+			updateTourButton();
+		};
+
+		function updateTourButton() {
+			var btn = document.getElementById("tour_btn_text");
+			if (btn) {
+				btn.innerHTML = isTouring ? "停止导览 (Stop Tour)" : "自动导览 (Auto Tour)";
+			}
+		}
+
+		// Patch animate to proceed tour
+		var originalAnimate = window.animate;
+		window.animate = function () {
+			originalAnimate();
+
+			// Arrived at picture? (camPos and targetPos are nullified in original animate on arrival)
+			if (isTouring && camPos === null && targetPos === null) {
+				if (!tourTimer) {
+					tourTimer = setTimeout(function () {
+						tourTimer = null;
+						if (isTouring) gotoNextArtwork();
+					}, 10000); // 10 seconds per artwork
+				}
+			}
+		};
+
+		// Interaction stops tour
+		var originalOnMouseDown = window.onDocumentMouseDown;
+		window.onDocumentMouseDown = function (event) {
+			if (isTouring) stopTour();
+			if (originalOnMouseDown) originalOnMouseDown(event);
+		};
+
+		var originalOnTouchStart = window.onDocumentTouchStart;
+		window.onDocumentTouchStart = function (event) {
+			if (isTouring) stopTour();
+			if (originalOnTouchStart) originalOnTouchStart(event);
+		};
+
+		// 3. Direct Entry Override
+		window.onload = function () {
+			var btn = document.getElementById("buttonenter");
+			var wait = document.getElementById("pleasewaitcontainer");
+			var pleasewait = document.getElementById("pleasewait");
+
+			if (btn) btn.style.display = "none";
+			if (wait) wait.style.display = "none";
+			if (pleasewait) pleasewait.style.display = "none";
+
+			// Add Tour Button to UI
+			var controls = document.getElementById("controls");
+			if (controls) {
+				var tourBtn = document.createElement("div");
+				tourBtn.id = "tour_button_ui";
+				tourBtn.style.cssText = "clear:both; margin-top:10px; padding: 8px; background: #55acee; border-radius: 8px; cursor:pointer; font-weight:bold; text-align:center;";
+				tourBtn.innerHTML = '<span id="tour_btn_text">自动导览 (Auto Tour)</span>';
+				tourBtn.onclick = function(e) {
+					e.stopPropagation();
+					toggleTour();
+				};
+				controls.appendChild(tourBtn);
+			}
+
+			// Start the experience
+			if (typeof welcomeSpeak === 'function') {
+				welcomeSpeak();
+			}
+
+			// Start BGM
+			startBGM();
+		};
+
+		// Disable original welcome call
+		window.welcome = function () { };
+
 		renderRoom();
 
-		welcome("Welcome.mp3", "Bienvenido al museo virtual de arte desarrollado por Leonardo Javier Russo. Haga click o toque una obra de arte para acercarse a ella y conocer su historia.");
-
+		// welcome("Welcome.mp3", "..."); // Disabled via override above or removed call below logic
+		
+		// Note: The original file called welcome(...) at the very end. 
+		// Since we are overriding things, let's just leave the original call there but verify it doesn't break.
+		// We redefined window.welcome above to be empty, so the original call on line ~250 will do nothing.
+		
 	</script>
 </body>
 
