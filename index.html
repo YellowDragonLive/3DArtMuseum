@@ -286,22 +286,22 @@
 
 				// Front wall
 				if (selectedObject.position.z == -229) {
-					targetPos = new THREE.Vector3(selectedObject.position.x, 0, selectedObject.position.z + 250);
+					targetPos = new THREE.Vector3(selectedObject.position.x, 0, selectedObject.position.z + 50);
 					destinyRotation = 0;
 				}
 				// Left wall
 				else if (selectedObject.position.x == -369) {
-					targetPos = new THREE.Vector3(selectedObject.position.x + 250, 0, selectedObject.position.z);
+					targetPos = new THREE.Vector3(selectedObject.position.x + 50, 0, selectedObject.position.z);
 					destinyRotation = -Math.PI / 2;
 				}
 				// Right wall
 				else if (selectedObject.position.x == 49) {
-					targetPos = new THREE.Vector3(selectedObject.position.x - 250, 0, selectedObject.position.z);
+					targetPos = new THREE.Vector3(selectedObject.position.x - 50, 0, selectedObject.position.z);
 					destinyRotation = Math.PI / 2;
 				}
 				// Back wall
 				else if (selectedObject.position.z == 269) {
-					targetPos = new THREE.Vector3(selectedObject.position.x, 0, selectedObject.position.z - 250);
+					targetPos = new THREE.Vector3(selectedObject.position.x, 0, selectedObject.position.z - 50);
 					destinyRotation = Math.PI;
 				}
 
@@ -323,6 +323,7 @@
 			if (isTouring) {
 				tourIndex = -1; // Start from first
 				gotoNextArtwork();
+				startBGM(); // Ensure BGM plays during tour
 			} else {
 				stopTour();
 			}
