@@ -344,10 +344,15 @@
 			// Arrived at picture? (camPos and targetPos are nullified in original animate on arrival)
 			if (isTouring && camPos === null && targetPos === null) {
 				// Human-like Jitter (Subtle breathing/hand-shake)
-				var time = Date.now() * 0.001;
-				var jitterX = Math.sin(time * 0.7) * 0.3;
-				var jitterY = Math.cos(time * 0.5) * 0.2;
-				var jitterRot = Math.sin(time * 0.4) * 0.002;
+				// Human-like Jitter (Subtle breathing/hand-shake)
+				// 抖动频率约一秒一次 (1Hz)
+				var t = Date.now() * 0.001; 
+				
+				// 通过叠加不同频率的正弦波来模拟随机的方向和幅度（1Hz 主频 + 低频扰动）
+				// 这样既有自然的“呼吸”感，又有随机的“晃动”感，且不会产生高频闪烁
+				var jitterX = Math.sin(t * 6.28) * 0.25 + Math.sin(t * 2.1) * 0.12;
+				var jitterY = Math.cos(t * 5.7) * 0.15 + Math.sin(t * 1.8) * 0.08;
+				var jitterRot = Math.sin(t * 4.9) * 0.0012;
 				
 				camera.position.x += jitterX;
 				camera.position.y += jitterY;
